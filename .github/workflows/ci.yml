@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pipeline:
+    name: Run pipeline on synthetic data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Generate synthetic Spotify export
+        run: python -m src.generate_synthetic --out data/synthetic
+      - name: Ingest, SQL models, data quality checks, analysis
+        run: python -m src.pipeline --source synthetic
