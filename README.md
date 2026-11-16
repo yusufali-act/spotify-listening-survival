@@ -10,8 +10,8 @@ Spotify Wrapped tells you what you played most. This project asks better questio
 - **What were my musical "eras"?** (months clustered by taste, with a constraint that keeps each era continuous)
 - **Which podcasts stick, and which do I abandon?**
 
-[![CI](../../actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
-&nbsp;**[▶ Live interactive dashboard](https://YOUR-GITHUB-USERNAME.github.io/spotify-listening-survival/)**
+[![CI](https://github.com/yusufali-act/spotify-listening-survival/actions/workflows/ci.yml/badge.svg)](https://github.com/yusufali-act/spotify-listening-survival/actions/workflows/ci.yml)
+&nbsp;**[▶ Live interactive dashboard](https://yusufali-act.github.io/spotify-listening-survival/)**
 
 > **Status:** the pipeline, analysis and dashboard are complete and running on a **synthetic dataset** that mirrors Spotify's export format field for field (see [why](#why-synthetic-data)). My real 10-year export has been requested, and the findings below will be regenerated from it when it arrives.
 
@@ -93,7 +93,7 @@ Each month becomes a vector of listening share per artist. **Agglomerative clust
 ## Run it on your own Spotify data
 
 ```bash
-git clone https://github.com/YOUR-GITHUB-USERNAME/spotify-listening-survival
+git clone https://github.com/yusufali-act/spotify-listening-survival
 cd spotify-listening-survival
 make all          # set up, generate demo data, run the pipeline
 make serve        # open http://localhost:8000
