@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listening Survival</title>
+<meta name="description" content="Ten years of Spotify streaming history analysed with SQL, Python and actuarial survival analysis.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f1; --surface: #fcfcfb; --border: #e6e5e0;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #8a8984; --grid: #ebeae5;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --seq-0: #f1f6fd; --seq-1: #b7d3f6; --seq-2: #6da7ec; --seq-3: #2a78d6; --seq-4: #184f95; --seq-5: #0d366b;
+  --banner: #fff4e0; --banner-ink: #7a4b00;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --border: #2c2c2a;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8f8e86; --grid: #2a2a28;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c;
+    --seq-0: #1d2633; --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #3987e5; --seq-4: #6da7ec; --seq-5: #b7d3f6;
+    --banner: #33270f; --banner-ink: #f2c879;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --border: #2c2c2a;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #8f8e86; --grid: #2a2a28;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c;
+  --seq-0: #1d2633; --seq-1: #104281; --seq-2: #1c5cab; --seq-3: #3987e5; --seq-4: #6da7ec; --seq-5: #b7d3f6;
+  --banner: #33270f; --banner-ink: #f2c879;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 64px; }
+header h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.1; margin: 0 0 6px; letter-spacing: -0.02em; }
+header p { color: var(--ink-2); margin: 0; max-width: 70ch; }
+.banner { background: var(--banner); color: var(--banner-ink); border-radius: 10px; padding: 10px 14px;
+  margin: 18px 0 0; font-size: 14px; }
+h2 { font-size: 20px; margin: 44px 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); margin: 0 0 14px; font-size: 14px; max-width: 75ch; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 24px; }
+.kpi, .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.kpi { padding: 14px 16px; }
+.kpi .v { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi .l { color: var(--ink-2); font-size: 13px; }
+.card { padding: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 14px; }
+.insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.insight h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 4px; }
+.insight p { margin: 0; }
+.chart { position: relative; height: 300px; }
+.chart.tall { height: 340px; }
+.card h3.t { font-size: 15px; margin: 0 0 2px; }
+.card p.c { color: var(--ink-2); font-size: 13px; margin: 0 0 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th { text-align: left; color: var(--ink-2); font-weight: 550; border-bottom: 1px solid var(--border); padding: 6px 8px; }
+td { border-bottom: 1px solid var(--border); padding: 6px 8px; vertical-align: top; }
+td.n, th.n { text-align: right; }
+.tw { overflow-x: auto; }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--border); color: var(--ink-2); white-space: nowrap; }
+.pill.up::before { content: "▲ "; color: var(--s3); }
+.pill.down::before { content: "▼ "; color: var(--s2); }
+.eras { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 10px; margin-top: 12px; }
+.era { border-left: 4px solid var(--c); padding: 6px 10px; background: var(--surface); border-radius: 0 10px 10px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.era b { display: block; }
+.era span { color: var(--ink-2); font-size: 13px; }
+.heat { display: grid; grid-template-columns: 38px repeat(24, 1fr); gap: 2px; font-size: 11px; color: var(--ink-2); }
+.heat div.cell { aspect-ratio: 1; border-radius: 3px; min-width: 0; }
+.heat .hl { text-align: center; }
+.legend-scale { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); margin-top: 8px; }
+.legend-scale i { width: 18px; height: 10px; border-radius: 2px; display: inline-block; }
+footer { margin-top: 56px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 16px; }
+footer a, .sub a { color: var(--s1); }
+.toggle { float: right; background: var(--surface); color: var(--ink-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+@media (max-width: 560px) { .heat { grid-template-columns: 30px repeat(24, 1fr); gap: 1px; font-size: 9px; } .chart { height: 260px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <button class="toggle" id="themeBtn" type="button" aria-label="Toggle dark mode">◐ Theme</button>
+    <h1>Listening Survival</h1>
+    <p id="period">Ten years of Spotify history, analysed with SQL, Python and the actuarial toolkit.</p>
+    <div class="banner" id="demoBanner" hidden>Showing <b>synthetic demo data</b>, generated in the exact Spotify export format. The real analysis will replace it once the export arrives.</div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <h2>What the data says</h2>
+  <p class="sub">Generated automatically from the numbers each time the pipeline runs.</p>
+  <section class="insights" id="insights"></section>
+
+  <h2>Listening over time, and its eras</h2>
+  <p class="sub">Each month is described by the share of time spent on each artist. Neighbouring months that sound alike are merged by hierarchical clustering until the clearest set of eras remains (picked by silhouette score).</p>
+  <div class="card"><div class="chart"><canvas id="monthly" aria-label="Hours listened per month, shaded by era"></canvas></div></div>
+  <div class="eras" id="eras"></div>
+
+  <h2>Survival analysis</h2>
+  <p class="sub">The same methods actuaries use for mortality and lapse, applied to music. Plays and artists that are still going at the end of the data are <i>censored</i>: they count while observed, without pretending to know when they'd end.</p>
+  <div class="grid2">
+    <div class="card">
+      <h3 class="t">How long does an artist stay in rotation?</h3>
+      <p class="c">Kaplan–Meier curve. An artist “dies” after 90 days without a play. Shaded bands are 95% Greenwood intervals.</p>
+      <div class="chart tall"><canvas id="km" aria-label="Kaplan-Meier artist survival curves by discovery cohort"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 class="t">The skip mortality table</h3>
+      <p class="c">q(x): of the songs still playing at second x, the share skipped in the next 5 seconds.</p>
+      <div class="chart tall"><canvas id="hazard" aria-label="Skip hazard by seconds into song, shuffle on vs off"></canvas></div>
+    </div>
+  </div>
+
+  <h2>Most played vs most loved</h2>
+  <p class="sub">Raw play counts reward habits and autoplay. The <b>love score</b> weights each play by how much was heard and whether it was chosen or replayed on purpose, then applies Bühlmann credibility (k = 20 plays) so a track needs a track record before it can rank highly.</p>
+  <div class="grid2">
+    <div class="card"><h3 class="t">Top 15 by raw plays</h3><p class="c">The pill shows where each track lands by love score.</p><div class="tw"><table id="played"></table></div></div>
+    <div class="card"><h3 class="t">Top 15 by love score</h3><p class="c">The pill shows where each track lands by raw plays.</p><div class="tw"><table id="loved"></table></div></div>
+  </div>
+
+  <h2>When I listen</h2>
+  <p class="sub">Hours by weekday and start hour (local time).</p>
+  <div class="card"><div class="heat" id="heat" role="img" aria-label="Heatmap of listening hours by weekday and hour"></div><div class="legend-scale" id="heatLegend"></div></div>
+
+  <h2>Artists and podcasts</h2>
+  <div class="grid2">
+    <div class="card"><h3 class="t">Top artists and their lifetimes</h3><p class="c">Lifetime is measured from the first play to the first 90-day silence.</p><div class="tw"><table id="artists"></table></div></div>
+    <div class="card"><h3 class="t">Podcasts: which ones stick?</h3><p class="c">Completion = share of started episodes that were finished.</p><div class="tw"><table id="pods"></table></div></div>
+  </div>
+
+  <footer>
+    Pipeline: Spotify JSON → Python ingest → DuckDB SQL models → Python survival analysis and clustering → this page and a Power BI model.
+    Personal identifiers (IP address, user agent) are dropped at ingest and only aggregates are published.
+  </footer>
+</main>
+
+<script>
+const D = window.DATA;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = n => Number(n).toLocaleString("en-GB");
+const pct = n => (n * 100).toFixed(0) + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const SER = () => ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"].map(css);
+let charts = [];
+
+function staticParts() {
+  const k = D.kpis;
+  document.getElementById("demoBanner").hidden = !D.demo;
+  document.getElementById("period").textContent =
+    `${new Date(k.first).toLocaleDateString("en-GB", { month: "short", year: "numeric" })} – ${new Date(k.last).toLocaleDateString("en-GB", { month: "short", year: "numeric" })} of Spotify history, analysed with SQL, Python and the actuarial toolkit.`;
+  document.getElementById("kpis").innerHTML = [
+    [fmt(k.hours), "hours listened"], [fmt(k.plays), "counted plays (≥30s)"], [fmt(k.artists), "artists"],
+    [fmt(k.sessions), "listening sessions"], [pct(k.skip_rate), "of music plays skipped"],
+  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  document.getElementById("insights").innerHTML = D.insights.slice(1)
+    .map(i => `<div class="card insight"><h3>${esc(i.title)}</h3><p>${esc(i.text)}</p></div>`).join("");
+
+  const row = (t, otherRank, otherLabel, rankNow) => {
+    const shift = otherRank - rankNow, cls = shift < 0 ? "up" : shift > 0 ? "down" : "";
+    return `<tr><td class="n">${rankNow}</td><td><b>${esc(t.track_name)}</b><br><span style="color:var(--ink-2)">${esc(t.artist_name)}</span></td>
+      <td class="n">${fmt(t.raw_plays)}</td><td class="n">${pct(t.skip_rate)}</td><td class="n">${t.love_score.toFixed(2)}</td>
+      <td><span class="pill ${otherLabel === "love" ? (otherRank <= rankNow ? "up" : "down") : (otherRank <= rankNow ? "up" : "down")}">#${fmt(otherRank)} ${otherLabel}</span></td></tr>`;
+  };
+  const head = `<tr><th class="n">#</th><th>Track</th><th class="n">Plays</th><th class="n">Skip</th><th class="n">Love</th><th></th></tr>`;
+  document.getElementById("played").innerHTML = head + D.top_played.map((t, i) => row(t, t.rank_by_love, "love", i + 1)).join("");
+  document.getElementById("loved").innerHTML = head + D.top_loved.map((t, i) => row(t, t.rank_by_plays, "plays", i + 1)).join("");
+
+  document.getElementById("artists").innerHTML =
+    `<tr><th>Artist</th><th class="n">Plays</th><th>First play</th><th class="n">Lifetime</th><th>Status</th></tr>` +
+    D.artists.slice(0, 15).map(a => `<tr><td>${esc(a.artist_name)}</td><td class="n">${fmt(a.counted_plays)}</td><td>${a.first_play.slice(0, 7)}</td>
+      <td class="n">${(a.lifetime_days / 365.25).toFixed(1)} yrs</td><td><span class="pill">${a.churned ? "Churned" : "In rotation"}</span></td></tr>`).join("");
+  document.getElementById("pods").innerHTML =
+    `<tr><th>Show</th><th class="n">Hours</th><th class="n">Episodes</th><th class="n">Completion</th><th>Status</th></tr>` +
+    D.podcasts.map(p => `<tr><td>${esc(p.show_name)}</td><td class="n">${fmt(p.hours)}</td><td class="n">${fmt(p.episodes_started)}</td>
+      <td class="n">${pct(p.completion_rate)}</td><td><span class="pill">${esc(p.status)}</span></td></tr>`).join("");
+}
+
+function themed() {
+  charts.forEach(c => c.destroy()); charts = [];
+  const S = SER(), ink2 = css("--ink-2"), grid = css("--grid");
+  Chart.defaults.color = ink2; Chart.defaults.borderColor = grid;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  const tip = { backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink-2"), borderColor: css("--border"), borderWidth: 1, padding: 10 };
+  const legend = { position: "top", align: "start", labels: { boxWidth: 12, boxHeight: 2, usePointStyle: false } };
+
+  // eras list
+  document.getElementById("eras").innerHTML = D.eras.map((e, i) =>
+    `<div class="era" style="--c:${S[i % S.length]}"><b>Era ${e.era} · ${e.start} → ${e.end}</b><span>${esc(e.signature_artists.join(", "))} · ${fmt(e.hours)} h</span></div>`).join("");
+
+  // monthly with era bands
+  const labels = D.monthly.map(m => m.year_month);
+  const eraOf = ym => D.eras.findIndex(e => ym >= e.start && ym <= e.end);
+  const bands = { id: "bands", beforeDatasetsDraw(c) {
+    const { ctx, chartArea: a, scales: { x } } = c;
+    D.eras.forEach((e, i) => {
+      const x0 = x.getPixelForValue(labels.indexOf(e.start)), x1 = x.getPixelForValue(labels.indexOf(e.end));
+      ctx.save(); ctx.fillStyle = S[i % S.length]; ctx.globalAlpha = 0.09; ctx.fillRect(x0, a.top, Math.max(x1 - x0, 1), a.bottom - a.top); ctx.restore();
+    });
+  } };
+  charts.push(new Chart(document.getElementById("monthly"), {
+    type: "line", plugins: [bands],
+    data: { labels, datasets: [
+      { label: "Music hours", data: D.monthly.map(m => m.music_hours), borderColor: S[0], borderWidth: 2, pointRadius: 0, tension: .25 },
+      { label: "Podcast hours", data: D.monthly.map(m => m.podcast_hours), borderColor: S[1], borderWidth: 2, pointRadius: 0, tension: .25 },
+    ] },
+    options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+      plugins: { legend, tooltip: { ...tip, callbacks: { afterTitle: it => { const i = eraOf(it[0].label); return i >= 0 ? `Era ${D.eras[i].era}` : ""; } } } },
+      scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 11, autoSkip: true } }, y: { beginAtZero: true, title: { display: true, text: "hours" } } } },
+  }));
+
+  // KM curves
+  const kmSet = (pts, label, color, dash) => ({ label, data: pts.map(p => ({ x: p.t, y: p.survival })), borderColor: color,
+    borderDash: dash || [], stepped: "after", borderWidth: 2, pointRadius: 0, fill: false });
+  const bandSet = (pts, color) => [
+    { data: pts.map(p => ({ x: p.t, y: p.upper })), borderWidth: 0, pointRadius: 0, stepped: "after", fill: false, label: "_u" },
+    { data: pts.map(p => ({ x: p.t, y: p.lower })), borderWidth: 0, pointRadius: 0, stepped: "after", fill: "-1", backgroundColor: color + "22", label: "_l" },
+  ];
+  const ds = [kmSet(D.km_all, "All artists", ink2, [5, 4])];
+  Object.entries(D.km_cohorts).forEach(([name, pts], i) => { ds.push(...bandSet(pts, S[i]), kmSet(pts, name, S[i])); });
+  charts.push(new Chart(document.getElementById("km"), {
+    type: "line", data: { datasets: ds },
+    options: { maintainAspectRatio: false, parsing: false, interaction: { mode: "nearest", axis: "x", intersect: false },
+      plugins: { legend: { ...legend, labels: { ...legend.labels, filter: l => !l.text.startsWith("_") } },
+        tooltip: { ...tip, filter: i => !i.dataset.label.startsWith("_"), callbacks: { title: it => `Day ${Math.round(it[0].parsed.x)}`, label: i => `${i.dataset.label}: ${pct(i.parsed.y)} still in rotation` } } },
+      scales: { x: { type: "linear", min: 0, max: 1500, title: { display: true, text: "days since first play" } },
+        y: { min: 0, max: 1, ticks: { callback: v => pct(v) }, title: { display: true, text: "still in rotation" } } } },
+  }));
+
+  // skip hazard
+  const hz = (lt, label, color) => ({ label, data: lt.map(r => ({ x: r.x + 2.5, y: r.q_x, l: r.l_x })), borderColor: color, backgroundColor: color, borderWidth: 2, pointRadius: 3, pointHoverRadius: 5 });
+  charts.push(new Chart(document.getElementById("hazard"), {
+    type: "line", data: { datasets: [hz(D.skip_shuffle, "Shuffle on", S[0]), hz(D.skip_chosen, "Shuffle off", S[1])] },
+    options: { maintainAspectRatio: false, parsing: false, interaction: { mode: "nearest", axis: "x", intersect: false },
+      plugins: { legend, tooltip: { ...tip, callbacks: { title: it => `${it[0].parsed.x - 2.5}–${it[0].parsed.x + 2.5}s`, label: i => `${i.dataset.label}: q = ${(i.parsed.y * 100).toFixed(1)}% (of ${fmt(i.raw.l)} still playing)` } } },
+      scales: { x: { type: "linear", min: 0, max: 240, title: { display: true, text: "seconds into the song" } },
+        y: { beginAtZero: true, ticks: { callback: v => pct(v) }, title: { display: true, text: "q(x)" } } } },
+  }));
+
+  // heatmap
+  const steps = ["--seq-0", "--seq-1", "--seq-2", "--seq-3", "--seq-4", "--seq-5"].map(css);
+  const max = Math.max(...D.heatmap.map(h => h.hours));
+  const val = {}; D.heatmap.forEach(h => val[h.weekday_num + "-" + h.start_hour] = h.hours);
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  let html = "<div></div>" + Array.from({ length: 24 }, (_, h) => `<div class="hl">${h % 3 === 0 ? h : ""}</div>`).join("");
+  days.forEach((d, i) => {
+    html += `<div>${d}</div>`;
+    for (let h = 0; h < 24; h++) {
+      const v = val[(i + 1) + "-" + h] || 0, s = steps[Math.min(5, Math.floor(Math.sqrt(v / max) * 5.999))];  // sqrt scale so quieter hours stay visible
+      html += `<div class="cell" style="background:${s}" title="${d} ${String(h).padStart(2, "0")}:00 · ${v.toFixed(1)} h"></div>`;
+    }
+  });
+  document.getElementById("heat").innerHTML = html;
+  document.getElementById("heatLegend").innerHTML = "Fewer hours " + steps.map(s => `<i style="background:${s}"></i>`).join("") + " More";
+}
+
+staticParts(); themed();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themed);
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark"; themed();
+});
+</script>
+</body>
+</html>
